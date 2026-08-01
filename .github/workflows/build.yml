@@ -1,6 +1,7 @@
 name: Build APK with Buildozer
 
 on:
+  on:
   push:
     branches: [ main, master ]
 
@@ -20,12 +21,12 @@ jobs:
     - name: Install Essential Tools
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip cmake
+        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip cmake autoconf libtool pkg-config zlib1g-dev
 
-    - name: Install Cython and Buildozer
+    - name: Install Buildozer
       run: |
         pip3 install --upgrade pip
-        pip3 install --user cython==0.29.36 buildozer
+        pip3 install --user buildozer
 
     - name: Add local bin to PATH
       run: echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -39,4 +40,5 @@ jobs:
       with:
         name: package
         path: bin/*.apk
+
 
