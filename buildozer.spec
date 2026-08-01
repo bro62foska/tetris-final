@@ -1,8 +1,8 @@
 [app]
-version = 0.1
 title = Tetris Geopolitics
 package.name = tetrisgeo
 package.domain = org.tetris
+version = 0.1
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 requirements = python3,kivy
