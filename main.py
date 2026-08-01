@@ -1,0 +1,458 @@
+import random
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.relativelayout import RelativeLayout
+from kivy.uix.widget import Widget
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
+from kivy.graphics import Color, Rectangle, Ellipse, Triangle
+from kivy.clock import Clock
+from kivy.core.window import Window
+
+Window.maximize()
+
+GRID_WIDTH = 10
+GRID_HEIGHT = 20
+
+SHAPES = [
+    [[1, 1, 1, 1]],  # I
+    [[1, 1], [1, 1]],  # O
+    [[1, 1, 1], [0, 1, 0]],  # T
+    [[1, 1, 0], [0, 1, 1]],  # Z
+    [[0, 1, 1], [1, 1, 0]],  # S
+    [[1, 1, 1], [1, 0, 0]],  # J
+    [[1, 1, 1], [0, 0, 1]]   # L
+]
+
+COLORS = [
+    (0, 1, 1), (1, 1, 0), (0.5, 0, 0.5),
+    (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0.5, 0)
+]
+
+LANGUAGES = {
+    'RU': {
+        'title': 'ТЕТРИС\n+ ГЕОПОЛИТИКА',
+        'play': 'ИГРАТЬ',
+        'resume': 'ПРОДОЛЖИТЬ',
+        'restart': 'ЗАНОВО',
+        'exit': 'ВЫХОД В МЕНЮ',
+        'menu_title': 'ПАУЗА',
+        'putin': '💥\nПУТИН'
+    },
+    'EN': {
+        'title': 'TETRIS\n+ POLITICS',
+        'play': 'PLAY',
+        'resume': 'RESUME',
+        'restart': 'RESTART',
+        'exit': 'MAIN MENU',
+        'menu_title': 'PAUSE',
+        'putin': '💥\nPUTIN'
+    }
+}
+
+class TetrisBoard(Widget):
+    def __init__(self, game_ref, **kwargs):
+        super().__init__(**kwargs)
+        self.game = game_ref
+        self.touch_start_pos = None
+        self.bind(size=self.draw_board, pos=self.draw_board)
+
+    def draw_board(self, *args):
+        self.canvas.clear()
+        if self.width <= 0 or self.height <= 0 or self.game.state not in ['playing', 'paused']:
+            return
+        
+        self.block_size = min(self.width / GRID_WIDTH, self.height / GRID_HEIGHT)
+        self.board_w = self.block_size * GRID_WIDTH
+        self.board_h = self.block_size * GRID_HEIGHT
+        
+        self.ox = self.x + (self.width - self.board_w) / 2
+        self.oy = self.y + (self.height - self.board_h) / 2
+
+        # Позиция кнопки Путина
+        if self.game.btn_putin:
+            self.game.btn_putin.center = (self.ox + self.board_w - 110, self.y + self.height * 0.55)
+
+        # Кнопка меню (три точки) смещена еще левее и чуть ниже
+        if self.game.btn_menu_dots:
+            self.game.btn_menu_dots.size = (60, 60)
+            self.game.btn_menu_dots.pos = (self.ox + self.board_w - 90, self.oy + self.board_h - 90)
+
+        with self.canvas:
+            Color(0.08, 0.08, 0.08, 1)
+            Rectangle(pos=(self.ox, self.oy), size=(self.board_w, self.board_h))
+
+            for y in range(GRID_HEIGHT):
+                for x in range(GRID_WIDTH):
+                    if self.game.grid[y][x]:
+                        Color(*self.game.grid[y][x])
+                        Rectangle(pos=(self.ox + x * self.block_size + 1, self.oy + y * self.block_size + 1), 
+                                  size=(self.block_size - 2, self.block_size - 2))
+                    else:
+                        Color(0.13, 0.13, 0.13, 1)
+                        Rectangle(pos=(self.ox + x * self.block_size + 1, self.oy + y * self.block_size + 1), 
+                                  size=(self.block_size - 2, self.block_size - 2))
+            
+            if self.game.current_shape:
+                Color(*self.game.current_color)
+                for r, row in enumerate(self.game.current_shape):
+                    for c, val in enumerate(row):
+                        if val:
+                            Rectangle(pos=(self.ox + (self.game.piece_x + c) * self.block_size + 1, 
+                                           self.oy + (self.game.piece_y + r) * self.block_size + 1), 
+                                      size=(self.block_size - 2, self.block_size - 2))
+
+            # Окошко следующей фигуры
+            px = self.ox + self.board_w - (self.block_size * 3) - 10
+            py = self.oy + self.board_h - (self.block_size * 3) - 10
+            Color(0.2, 0.2, 0.2, 0.7)
+            Rectangle(pos=(px, py), size=(self.block_size * 3, self.block_size * 3))
+            
+            if self.game.next_shape:
+                Color(*self.game.next_color)
+                for r, row in enumerate(self.game.next_shape):
+                    for c, val in enumerate(row):
+                        if val:
+                            Rectangle(pos=(px + (c + 0.3) * (self.block_size * 0.7), 
+                                           py + (r + 0.3) * (self.block_size * 0.7)), 
+                                      size=((self.block_size * 0.7) - 2, (self.block_size * 0.7) - 2))
+            
+            # --- ТРАМП ---
+            if self.game.trump_active:
+                tw = self.block_size * 4  
+                tx = self.game.trump_x
+                ty = self.oy + self.board_h / 2
+                
+                Color(1, 0.85, 0, 1)
+                Ellipse(pos=(tx - 10, ty + (tw * 0.1 if self.game.trump_state == 'knockout' else tw * 0.3)), size=(tw + 20, tw * 0.8))
+                Color(1, 0.7, 0.5, 1)
+                Ellipse(pos=(tx, ty), size=(tw, tw))
+                Color(1, 0.85, 0, 1)
+                Triangle(points=[tx, ty + tw*0.9, tx + tw*1.2, ty + tw*1.1, tx + tw*0.4, ty + tw*0.6])
+                
+                if self.game.trump_state == 'knockout':
+                    Color(0, 0, 0, 1)
+                    Rectangle(pos=(tx + tw*0.2, ty + tw*0.6), size=(tw*0.1, tw*0.03))
+                    Rectangle(pos=(tx + tw*0.6, ty + tw*0.6), size=(tw*0.1, tw*0.03))
+                else:
+                    Color(1, 1, 1, 1)
+                    Rectangle(pos=(tx + tw*0.2, ty + tw*0.6), size=(tw*0.2, tw*0.08))
+                    Rectangle(pos=(tx + tw*0.6, ty + tw*0.6), size=(tw*0.2, tw*0.08))
+                Color(0.7, 0.1, 0.1, 1)
+                Ellipse(pos=(tx + tw*0.35, ty + tw*0.2), size=(tw*0.3, tw*0.15))
+
+                if self.game.punch_active:
+                    # Кулак
+                    Color(0.85, 0.65, 0.45, 1)
+                    f_size = tw * 0.9
+                    fx = tx + tw - 30
+                    fy = ty + tw * 0.2
+                    Ellipse(pos=(fx, fy), size=(f_size, f_size))
+                    
+                    # --- ОГРОМНАЯ КРАСНАЯ ЗВЕЗДА НА ВЕСЬ КУЛАК ---
+                    Color(0.95, 0.1, 0.1, 1)
+                    sx = fx + f_size / 2
+                    sy = fy + f_size / 2
+                    s_size = f_size * 0.45  # Занимает почти половину кулака
+                    Triangle(points=[sx, sy + s_size, sx - s_size*0.4, sy - s_size*0.5, sx + s_size*0.5, sy - s_size*0.2])
+                    Triangle(points=[sx, sy - s_size*0.8, sx - s_size*0.5, sy + s_size*0.3, sx + s_size*0.5, sy + s_size*0.3])
+            
+            if self.game.state == 'paused':
+                Color(0, 0, 0, 0.6)
+                Rectangle(pos=(self.ox, self.oy), size=(self.board_w, self.board_h))
+
+    def on_touch_down(self, touch):
+        if self.game.state == 'playing':
+            if self.game.btn_putin and self.game.btn_putin.parent and self.game.btn_putin.collide_point(*touch.pos):
+                return False
+            if self.game.btn_menu_dots and self.game.btn_menu_dots.collide_point(*touch.pos):
+                return False
+            self.touch_start_pos = touch.pos
+            return True
+        return super().on_touch_down(touch)
+
+    def on_touch_up(self, touch):
+        if self.game.state == 'playing' and self.touch_start_pos:
+            dx = touch.x - self.touch_start_pos[0]
+            dy = touch.y - self.touch_start_pos[1]
+            self.touch_start_pos = None
+
+            swipe_threshold = 40 
+
+            if abs(dx) > abs(dy):
+                if dx > swipe_threshold:
+                    self.game.move_right(None)
+                elif dx < -swipe_threshold:
+                    self.game.move_left(None)
+            else:
+                if dy > swipe_threshold:
+                    self.game.rotate_piece(None)
+                elif dy < -swipe_threshold:
+                    self.game.drop_hard()
+            return True
+        return super().on_touch_up(touch)
+
+
+class TetrisGame(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = 'vertical'
+        self.state = 'menu'  
+        self.lang = 'RU' 
+        self.grid = [[None for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+        
+        self.trump_active = False
+        self.trump_x = -500
+        self.trump_speed = 18
+        self.punch_active = False
+        
+        self.current_shape = None
+        self.next_shape = None
+        self.btn_putin = None
+        self.btn_menu_dots = None
+        self.show_menu()
+
+    def show_menu(self):
+        self.clear_widgets()
+        t = LANGUAGES[self.lang]
+        menu_layout = BoxLayout(orientation='vertical', padding=40, spacing=25)
+        
+        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.1), spacing=20)
+        btn_ru = Button(text='RU', font_size='22sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.4, 0.4, 0.4, 1))
+        btn_en = Button(text='EN', font_size='22sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.4, 0.4, 0.4, 1))
+        btn_ru.bind(on_press=lambda inst: self.change_lang('RU'))
+        btn_en.bind(on_press=lambda inst: self.change_lang('EN'))
+        lang_bar.add_widget(btn_ru)
+        lang_bar.add_widget(btn_en)
+        menu_layout.add_widget(lang_bar)
+        
+        # Сделали шрифт еще меньше ('30sp'), чтобы геополитика поместилась идеально
+        self.logo = Label(text=t['title'], font_size='30sp', halign='center', bold=True, size_hint=(1, 0.6))
+        self.btn_start = Button(text=t['play'], font_size='45sp', bold=True, size_hint=(1, 0.3))
+        self.btn_start.bind(on_press=self.start_game)
+        
+        menu_layout.add_widget(self.logo)
+        menu_layout.add_widget(self.btn_start)
+        self.add_widget(menu_layout)
+
+    def change_lang(self, new_lang):
+        self.lang = new_lang
+        self.show_menu()
+
+    def start_game(self, instance):
+        self.clear_widgets()
+        self.state = 'playing'
+        self.grid = [[None for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+        self.trump_active = False
+        self.punch_active = False
+        
+        t = LANGUAGES[self.lang]
+        
+        self.game_container = RelativeLayout(size_hint=(1, 1))
+        
+        self.board = TetrisBoard(self, size_hint=(1, 1))
+        self.game_container.add_widget(self.board)
+        
+        self.btn_menu_dots = Button(
+            text='⋮', font_size='28sp', bold=True,
+            size_hint=(None, None), size=(60, 60),
+            background_color=(0.2, 0.2, 0.2, 0.85)
+        )
+        self.btn_menu_dots.bind(on_press=self.open_pause_popup)
+        self.game_container.add_widget(self.btn_menu_dots)
+
+        self.btn_putin = Button(
+            text=t['putin'], font_size='22sp', bold=True, halign='center',
+            size_hint=(None, None), size=(230, 230),
+            background_color=(0.9, 0.1, 0.1, 0.95)
+        )
+        self.btn_putin.bind(on_press=self.putin_punch)
+        
+        self.add_widget(self.game_container)
+        Window.bind(on_key_down=self.on_key_down)
+
+        self.next_shape = random.choice(SHAPES)
+        self.next_color = random.choice(COLORS)
+        self.spawn_piece()
+        
+        Clock.schedule_interval(self.update, 0.03)
+        self.fall_buffer = 0
+
+    def open_pause_popup(self, instance):
+        if self.state == 'playing':
+            self.state = 'paused'
+            self.board.draw_board()
+
+        t = LANGUAGES[self.lang]
+        content = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        
+        btn_resume = Button(text=t['resume'], font_size='20sp', bold=True, background_color=(0.2, 0.6, 1, 1))
+        btn_restart = Button(text=t['restart'], font_size='20sp', bold=True, background_color=(0.8, 0.6, 0.2, 1))
+        btn_exit = Button(text=t['exit'], font_size='20sp', bold=True, background_color=(0.8, 0.2, 0.2, 1))
+
+        popup = Popup(
+            title=t['menu_title'], content=content,
+            size_hint=(0.6, 0.5), auto_dismiss=False
+        )
+
+        def resume_game(inst):
+            popup.dismiss()
+            self.state = 'playing'
+            self.board.draw_board()
+
+        def restart_game(inst):
+            popup.dismiss()
+            self.start_game(None)
+
+        def exit_game(inst):
+            popup.dismiss()
+            self.exit_to_menu(None)
+
+        btn_resume.bind(on_press=resume_game)
+        btn_restart.bind(on_press=restart_game)
+        btn_exit.bind(on_press=exit_game)
+
+        content.add_widget(btn_resume)
+        content.add_widget(btn_restart)
+        content.add_widget(btn_exit)
+        
+        popup.open()
+
+    def exit_to_menu(self, instance):
+        Clock.unschedule(self.update)
+        self.state = 'menu'
+        self.show_menu()
+
+    def spawn_piece(self):
+        self.current_shape = self.next_shape
+        self.current_color = self.next_color
+        self.next_shape = random.choice(SHAPES)
+        self.next_color = random.choice(COLORS)
+        
+        self.piece_x = GRID_WIDTH // 2 - len(self.current_shape[0]) // 2
+        self.piece_y = GRID_HEIGHT - len(self.current_shape)
+        
+        if self.check_collision(0, 0):
+            self.exit_to_menu(None)
+
+        if not self.trump_active and self.current_shape in [SHAPES[0], SHAPES[1]]:
+            if random.random() < 0.6:  
+                self.trump_active = True
+                self.trump_x = -300  
+                self.trump_state = 'entering'
+                if not self.btn_putin.parent:
+                    self.game_container.add_widget(self.btn_putin)
+
+    def putin_punch(self, instance):
+        if self.trump_active and self.trump_state == 'entering':
+            self.punch_active = True
+            self.trump_state = 'knockout'
+            self.trump_speed = 25 
+            if self.btn_putin.parent:
+                self.game_container.remove_widget(self.btn_putin)
+            Clock.schedule_once(self.disable_punch, 0.2)
+
+    def disable_punch(self, dt):
+        self.punch_active = False
+
+    def update(self, dt):
+        if self.state != 'playing':
+            return True
+        
+        if self.trump_active:
+            if self.trump_state == 'entering':
+                self.trump_x += self.trump_speed
+                if self.trump_x >= self.board.x + 40:
+                    self.trump_state = 'stealing'
+            elif self.trump_state == 'stealing':
+                self.current_shape = random.choice(SHAPES[2:])
+                self.current_color = random.choice(COLORS[2:])
+                self.piece_x = GRID_WIDTH // 2 - len(self.current_shape[0]) // 2
+                self.trump_state = 'leaving'
+                if self.btn_putin.parent:
+                    self.game_container.remove_widget(self.btn_putin)
+            elif self.trump_state == 'leaving' or self.trump_state == 'knockout':
+                self.trump_x -= self.trump_speed
+                if self.trump_x <= -400:
+                    self.trump_active = False
+
+        self.fall_buffer += 1
+        if self.fall_buffer >= 15:
+            self.fall_buffer = 0
+            if not self.check_collision(0, -1):
+                self.piece_y -= 1
+            else:
+                self.lock_piece()
+                
+        self.board.draw_board()
+
+    def check_collision(self, dx, dy, shape=None):
+        if shape is None:
+            shape = self.current_shape
+        for r, row in enumerate(shape):
+            for c, val in enumerate(row):
+                if val:
+                    nx, ny = self.piece_x + c + dx, self.piece_y + r + dy
+                    if nx < 0 or nx >= GRID_WIDTH or ny < 0:
+                        return True
+                    if ny < GRID_HEIGHT and self.grid[ny][nx]:
+                        return True
+        return False
+
+    def lock_piece(self):
+        for r, row in enumerate(self.current_shape):
+            for c, val in enumerate(row):
+                if val:
+                    self.grid[self.piece_y + r][self.piece_x + c] = self.current_color
+        self.clear_rows()
+        self.spawn_piece()
+
+    def clear_rows(self):
+        self.grid = [row for row in self.grid if any(x is None for x in row)]
+        while len(self.grid) < GRID_HEIGHT:
+            self.grid.append([None for _ in range(GRID_WIDTH)])
+
+    def move_left(self, instance):
+        if self.state == 'playing' and not self.check_collision(-1, 0): self.piece_x -= 1
+        self.board.draw_board()
+
+    def move_right(self, instance):
+        if self.state == 'playing' and not self.check_collision(1, 0): self.piece_x += 1
+        self.board.draw_board()
+
+    def move_down(self, instance):
+        if self.state == 'playing':
+            if not self.check_collision(0, -1):
+                self.piece_y -= 1
+            else:
+                self.lock_piece()
+            self.board.draw_board()
+
+    def drop_hard(self):
+        if self.state == 'playing':
+            while not self.check_collision(0, -1):
+                self.piece_y -= 1
+            self.lock_piece()
+            self.board.draw_board()
+
+    def rotate_piece(self, instance=None):
+        if self.state == 'playing':
+            rotated = list(zip(*self.current_shape[::-1]))
+            if not self.check_collision(0, 0, rotated):
+                self.current_shape = rotated
+            self.board.draw_board()
+
+    def on_key_down(self, window, key, scancode, codepoint, modifiers):
+        if self.state == 'playing':
+            if key == 276: self.move_left(None)
+            elif key == 275: self.move_right(None)
+            elif key == 274: self.drop_hard()
+            elif key == 273: self.rotate_piece(None)
+
+class TetrisApp(App):
+    def build(self):
+        return TetrisGame()
+
+if __name__ == '__main__':
+    TetrisApp().run()
