@@ -2,6 +2,7 @@
 title = Tetris Geopolitics
 package.name = tetrisgeo
 package.domain = org.tetris
+# версия игры
 version = 0.1
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
