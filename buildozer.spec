@@ -1,4 +1,5 @@
 [app]
+version = 0.1
 title = Tetris Geopolitics
 package.name = tetrisgeo
 package.domain = org.tetris
