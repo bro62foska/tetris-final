@@ -9,8 +9,7 @@ from kivy.uix.popup import Popup
 from kivy.graphics import Color, Rectangle, Ellipse, Triangle
 from kivy.clock import Clock
 from kivy.core.window import Window
-
-Window.maximize()
+from kivy.metrics import dp  # Импортируем независимые от плотности пиксели
 
 GRID_WIDTH = 10
 GRID_HEIGHT = 20
@@ -63,21 +62,31 @@ class TetrisBoard(Widget):
         if self.width <= 0 or self.height <= 0 or self.game.state not in ['playing', 'paused']:
             return
         
-        self.block_size = min(self.width / GRID_WIDTH, self.height / GRID_HEIGHT)
+        # Оставляем снизу 150dp под кнопки управления на любых экранах
+        available_height = self.height - dp(150)
+        
+        self.block_size = min(self.width / GRID_WIDTH, available_height / GRID_HEIGHT)
         self.board_w = self.block_size * GRID_WIDTH
         self.board_h = self.block_size * GRID_HEIGHT
         
         self.ox = self.x + (self.width - self.board_w) / 2
-        self.oy = self.y + (self.height - self.board_h) / 2
+        self.oy = self.y + (available_height - self.board_h) / 2 + dp(130)
 
-        # Позиция кнопки Путина
+        # Динамический размер кнопки Путина (зависит от ширины стакана)
         if self.game.btn_putin:
-            self.game.btn_putin.center = (self.ox + self.board_w - 110, self.y + self.height * 0.55)
+            btn_size = int(self.board_w * 0.45)
+            self.game.btn_putin.size = (btn_size, btn_size)
+            self.game.btn_putin.font_size = f'{int(btn_size * 0.13)}sp'
+            # Позиционируем справа внизу под стаканом
+            self.game.btn_putin.pos = (self.ox + self.board_w - btn_size, dp(20))
 
-        # Кнопка меню (три точки) смещена еще левее и чуть ниже
+        # Динамический размер кнопки Меню (три точки)
         if self.game.btn_menu_dots:
-            self.game.btn_menu_dots.size = (60, 60)
-            self.game.btn_menu_dots.pos = (self.ox + self.board_w - 90, self.oy + self.board_h - 90)
+            menu_size = int(dp(50))
+            self.game.btn_menu_dots.size = (menu_size, menu_size)
+            self.game.btn_menu_dots.font_size = f'{int(menu_size * 0.5)}sp'
+            # Позиционируем слева внизу под стаканом
+            self.game.btn_menu_dots.pos = (self.ox, dp(20))
 
         with self.canvas:
             Color(0.08, 0.08, 0.08, 1)
@@ -103,9 +112,9 @@ class TetrisBoard(Widget):
                                            self.oy + (self.game.piece_y + r) * self.block_size + 1), 
                                       size=(self.block_size - 2, self.block_size - 2))
 
-            # Окошко следующей фигуры
-            px = self.ox + self.board_w - (self.block_size * 3) - 10
-            py = self.oy + self.board_h - (self.block_size * 3) - 10
+            # Окошко следующей фигуры (пропорционально размеру блока)
+            px = self.ox + self.board_w - (self.block_size * 3) - dp(5)
+            py = self.oy + self.board_h - (self.block_size * 3) - dp(5)
             Color(0.2, 0.2, 0.2, 0.7)
             Rectangle(pos=(px, py), size=(self.block_size * 3, self.block_size * 3))
             
@@ -118,7 +127,7 @@ class TetrisBoard(Widget):
                                            py + (r + 0.3) * (self.block_size * 0.7)), 
                                       size=((self.block_size * 0.7) - 2, (self.block_size * 0.7) - 2))
             
-            # --- ТРАМП ---
+            # --- ТРАМП (Масштабируется под размер стакана) ---
             if self.game.trump_active:
                 tw = self.block_size * 4  
                 tx = self.game.trump_x
@@ -143,18 +152,16 @@ class TetrisBoard(Widget):
                 Ellipse(pos=(tx + tw*0.35, ty + tw*0.2), size=(tw*0.3, tw*0.15))
 
                 if self.game.punch_active:
-                    # Кулак
                     Color(0.85, 0.65, 0.45, 1)
                     f_size = tw * 0.9
                     fx = tx + tw - 30
                     fy = ty + tw * 0.2
                     Ellipse(pos=(fx, fy), size=(f_size, f_size))
                     
-                    # --- ОГРОМНАЯ КРАСНАЯ ЗВЕЗДА НА ВЕСЬ КУЛАК ---
                     Color(0.95, 0.1, 0.1, 1)
                     sx = fx + f_size / 2
                     sy = fy + f_size / 2
-                    s_size = f_size * 0.45  # Занимает почти половину кулака
+                    s_size = f_size * 0.45
                     Triangle(points=[sx, sy + s_size, sx - s_size*0.4, sy - s_size*0.5, sx + s_size*0.5, sy - s_size*0.2])
                     Triangle(points=[sx, sy - s_size*0.8, sx - s_size*0.5, sy + s_size*0.3, sx + s_size*0.5, sy + s_size*0.3])
             
@@ -178,7 +185,7 @@ class TetrisBoard(Widget):
             dy = touch.y - self.touch_start_pos[1]
             self.touch_start_pos = None
 
-            swipe_threshold = 40 
+            swipe_threshold = dp(30)  # Свайпы теперь тоже зависят от плотности экрана
 
             if abs(dx) > abs(dy):
                 if dx > swipe_threshold:
@@ -216,20 +223,19 @@ class TetrisGame(BoxLayout):
     def show_menu(self):
         self.clear_widgets()
         t = LANGUAGES[self.lang]
-        menu_layout = BoxLayout(orientation='vertical', padding=40, spacing=25)
+        menu_layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
         
-        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.1), spacing=20)
-        btn_ru = Button(text='RU', font_size='22sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.4, 0.4, 0.4, 1))
-        btn_en = Button(text='EN', font_size='22sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.4, 0.4, 0.4, 1))
+        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.15), spacing=dp(10))
+        btn_ru = Button(text='RU', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.4, 0.4, 0.4, 1))
+        btn_en = Button(text='EN', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.4, 0.4, 0.4, 1))
         btn_ru.bind(on_press=lambda inst: self.change_lang('RU'))
         btn_en.bind(on_press=lambda inst: self.change_lang('EN'))
         lang_bar.add_widget(btn_ru)
         lang_bar.add_widget(btn_en)
         menu_layout.add_widget(lang_bar)
         
-        # Сделали шрифт еще меньше ('30sp'), чтобы геополитика поместилась идеально
-        self.logo = Label(text=t['title'], font_size='30sp', halign='center', bold=True, size_hint=(1, 0.6))
-        self.btn_start = Button(text=t['play'], font_size='45sp', bold=True, size_hint=(1, 0.3))
+        self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.5))
+        self.btn_start = Button(text=t['play'], font_size='32sp', bold=True, size_hint=(1, 0.25))
         self.btn_start.bind(on_press=self.start_game)
         
         menu_layout.add_widget(self.logo)
@@ -248,23 +254,24 @@ class TetrisGame(BoxLayout):
         self.punch_active = False
         
         t = LANGUAGES[self.lang]
-        
         self.game_container = RelativeLayout(size_hint=(1, 1))
         
         self.board = TetrisBoard(self, size_hint=(1, 1))
         self.game_container.add_widget(self.board)
         
+        # Кнопки создаем БЕЗ фиксированного размера, так как их размер и позиция 
+        # теперь динамически пересчитываются внутри метода draw_board
         self.btn_menu_dots = Button(
-            text='⋮', font_size='28sp', bold=True,
-            size_hint=(None, None), size=(60, 60),
+            text='⋮', bold=True,
+            size_hint=(None, None),
             background_color=(0.2, 0.2, 0.2, 0.85)
         )
         self.btn_menu_dots.bind(on_press=self.open_pause_popup)
         self.game_container.add_widget(self.btn_menu_dots)
 
         self.btn_putin = Button(
-            text=t['putin'], font_size='22sp', bold=True, halign='center',
-            size_hint=(None, None), size=(230, 230),
+            text=t['putin'], bold=True, halign='center',
+            size_hint=(None, None),
             background_color=(0.9, 0.1, 0.1, 0.95)
         )
         self.btn_putin.bind(on_press=self.putin_punch)
@@ -285,15 +292,15 @@ class TetrisGame(BoxLayout):
             self.board.draw_board()
 
         t = LANGUAGES[self.lang]
-        content = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
         
-        btn_resume = Button(text=t['resume'], font_size='20sp', bold=True, background_color=(0.2, 0.6, 1, 1))
-        btn_restart = Button(text=t['restart'], font_size='20sp', bold=True, background_color=(0.8, 0.6, 0.2, 1))
-        btn_exit = Button(text=t['exit'], font_size='20sp', bold=True, background_color=(0.8, 0.2, 0.2, 1))
+        btn_resume = Button(text=t['resume'], font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1))
+        btn_restart = Button(text=t['restart'], font_size='18sp', bold=True, background_color=(0.8, 0.6, 0.2, 1))
+        btn_exit = Button(text=t['exit'], font_size='18sp', bold=True, background_color=(0.8, 0.2, 0.2, 1))
 
         popup = Popup(
             title=t['menu_title'], content=content,
-            size_hint=(0.6, 0.5), auto_dismiss=False
+            size_hint=(0.8, 0.4), auto_dismiss=False
         )
 
         def resume_game(inst):
@@ -363,7 +370,7 @@ class TetrisGame(BoxLayout):
         if self.trump_active:
             if self.trump_state == 'entering':
                 self.trump_x += self.trump_speed
-                if self.trump_x >= self.board.x + 40:
+                if self.trump_x >= self.board.ox + dp(20):
                     self.trump_state = 'stealing'
             elif self.trump_state == 'stealing':
                 self.current_shape = random.choice(SHAPES[2:])
@@ -374,7 +381,7 @@ class TetrisGame(BoxLayout):
                     self.game_container.remove_widget(self.btn_putin)
             elif self.trump_state == 'leaving' or self.trump_state == 'knockout':
                 self.trump_x -= self.trump_speed
-                if self.trump_x <= -400:
+                if self.trump_x <= -500:
                     self.trump_active = False
 
         self.fall_buffer += 1
