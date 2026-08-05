@@ -6,21 +6,18 @@ version = 0.1
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 
-# Зафиксировали версию Python для приложения
+# Используем стандартный python3 без жесткой привязки к 3.11
 requirements = python3,kivy
-
 
 orientation = portrait
 android.api = 33
 android.minapi = 21
 
-# Фиксируем версию Python для сервера-сборщика
-
-
+# Переменная NDK для корректной компиляции
 android.ndk = 26b
 android.archs = arm64-v8a
 android.accept_sdk_license = True
 
 [buildozer]
 log_level = 2
-warn_on_root = 2
+warn_on_root = 1
