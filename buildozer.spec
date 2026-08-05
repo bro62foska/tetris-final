@@ -6,16 +6,14 @@ version = 0.1
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 
-# Указываем версию Python для самого приложения
-requirements = python3==3.11,kivy
+# Зависимости без привязки версий (чтобы избежать конфликтов Python)
+requirements = python3,kivy
 
 orientation = portrait
 android.api = 33
 android.minapi = 21
 
-# Указываем версию Python для сборщика на сервере, чтобы не было конфликта
-android.meta_defines = python3.version=3.11
-
+# Стабильный NDK
 android.ndk = 26b
 android.archs = arm64-v8a
 android.accept_sdk_license = True
