@@ -9,7 +9,7 @@ from kivy.uix.popup import Popup
 from kivy.graphics import Color, Rectangle, Ellipse, Triangle
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.metrics import dp  # Импортируем независимые от плотности пиксели
+from kivy.metrics import dp
 
 GRID_WIDTH = 10
 GRID_HEIGHT = 20
@@ -36,6 +36,7 @@ LANGUAGES = {
         'resume': 'ПРОДОЛЖИТЬ',
         'restart': 'ЗАНОВО',
         'exit': 'ВЫХОД В МЕНЮ',
+        'close_app': 'ВЫЙТИ ИЗ ИГРЫ',
         'menu_title': 'ПАУЗА',
         'putin': '💥\nПУТИН'
     },
@@ -45,6 +46,7 @@ LANGUAGES = {
         'resume': 'RESUME',
         'restart': 'RESTART',
         'exit': 'MAIN MENU',
+        'close_app': 'EXIT GAME',
         'menu_title': 'PAUSE',
         'putin': '💥\nPUTIN'
     }
@@ -62,7 +64,6 @@ class TetrisBoard(Widget):
         if self.width <= 0 or self.height <= 0 or self.game.state not in ['playing', 'paused']:
             return
         
-        # Оставляем снизу 150dp под кнопки управления на любых экранах
         available_height = self.height - dp(150)
         
         self.block_size = min(self.width / GRID_WIDTH, available_height / GRID_HEIGHT)
@@ -72,20 +73,16 @@ class TetrisBoard(Widget):
         self.ox = self.x + (self.width - self.board_w) / 2
         self.oy = self.y + (available_height - self.board_h) / 2 + dp(130)
 
-        # Динамический размер кнопки Путина (зависит от ширины стакана)
         if self.game.btn_putin:
             btn_size = int(self.board_w * 0.45)
             self.game.btn_putin.size = (btn_size, btn_size)
             self.game.btn_putin.font_size = f'{int(btn_size * 0.13)}sp'
-            # Позиционируем справа внизу под стаканом
             self.game.btn_putin.pos = (self.ox + self.board_w - btn_size, dp(20))
 
-        # Динамический размер кнопки Меню (три точки)
         if self.game.btn_menu_dots:
             menu_size = int(dp(50))
             self.game.btn_menu_dots.size = (menu_size, menu_size)
             self.game.btn_menu_dots.font_size = f'{int(menu_size * 0.5)}sp'
-            # Позиционируем слева внизу под стаканом
             self.game.btn_menu_dots.pos = (self.ox, dp(20))
 
         with self.canvas:
@@ -112,7 +109,6 @@ class TetrisBoard(Widget):
                                            self.oy + (self.game.piece_y + r) * self.block_size + 1), 
                                       size=(self.block_size - 2, self.block_size - 2))
 
-            # Окошко следующей фигуры (пропорционально размеру блока)
             px = self.ox + self.board_w - (self.block_size * 3) - dp(5)
             py = self.oy + self.board_h - (self.block_size * 3) - dp(5)
             Color(0.2, 0.2, 0.2, 0.7)
@@ -127,7 +123,6 @@ class TetrisBoard(Widget):
                                            py + (r + 0.3) * (self.block_size * 0.7)), 
                                       size=((self.block_size * 0.7) - 2, (self.block_size * 0.7) - 2))
             
-            # --- ТРАМП (Масштабируется под размер стакана) ---
             if self.game.trump_active:
                 tw = self.block_size * 4  
                 tx = self.game.trump_x
@@ -185,7 +180,7 @@ class TetrisBoard(Widget):
             dy = touch.y - self.touch_start_pos[1]
             self.touch_start_pos = None
 
-            swipe_threshold = dp(30)  # Свайпы теперь тоже зависят от плотности экрана
+            swipe_threshold = dp(30)
 
             if abs(dx) > abs(dy):
                 if dx > swipe_threshold:
@@ -225,7 +220,8 @@ class TetrisGame(BoxLayout):
         t = LANGUAGES[self.lang]
         menu_layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
         
-        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.15), spacing=dp(10))
+        # Переключатель языков
+        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.12), spacing=dp(10))
         btn_ru = Button(text='RU', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.4, 0.4, 0.4, 1))
         btn_en = Button(text='EN', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.4, 0.4, 0.4, 1))
         btn_ru.bind(on_press=lambda inst: self.change_lang('RU'))
@@ -234,17 +230,29 @@ class TetrisGame(BoxLayout):
         lang_bar.add_widget(btn_en)
         menu_layout.add_widget(lang_bar)
         
-        self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.5))
-        self.btn_start = Button(text=t['play'], font_size='32sp', bold=True, size_hint=(1, 0.25))
+        # Заголовок
+        self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.4))
+        
+        # Кнопка СТАРТ
+        self.btn_start = Button(text=t['play'], font_size='26sp', bold=True, size_hint=(1, 0.24), background_color=(0.2, 0.8, 0.2, 1))
         self.btn_start.bind(on_press=self.start_game)
         
+        # Кнопка ЗАКРЫТЬ ИГРУ
+        self.btn_close = Button(text=t['close_app'], font_size='22sp', bold=True, size_hint=(1, 0.2), background_color=(0.8, 0.2, 0.2, 1))
+        self.btn_close.bind(on_press=self.close_app)
+
         menu_layout.add_widget(self.logo)
         menu_layout.add_widget(self.btn_start)
+        menu_layout.add_widget(self.btn_close)
         self.add_widget(menu_layout)
 
     def change_lang(self, new_lang):
         self.lang = new_lang
         self.show_menu()
+
+    def close_app(self, instance):
+        # Завершение работы приложения Kivy
+        App.get_running_app().stop()
 
     def start_game(self, instance):
         self.clear_widgets()
@@ -259,8 +267,6 @@ class TetrisGame(BoxLayout):
         self.board = TetrisBoard(self, size_hint=(1, 1))
         self.game_container.add_widget(self.board)
         
-        # Кнопки создаем БЕЗ фиксированного размера, так как их размер и позиция 
-        # теперь динамически пересчитываются внутри метода draw_board
         self.btn_menu_dots = Button(
             text='⋮', bold=True,
             size_hint=(None, None),
