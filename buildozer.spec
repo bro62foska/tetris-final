@@ -4,6 +4,8 @@ package.name = tetrisgeo
 package.domain = org.tetris
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
+# (str) Icon of the application
+icon.filename = icon.png
 version = 0.1
 
 # Зависимости
