@@ -1,0 +1,45 @@
+name: Super Tetris Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev readline-common libreadline-dev libffi-dev cython3
+        pip install --upgrade pip
+        pip install buildozer cython
+
+    - name: Decode Keystore
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > key.keystore
+
+    - name: Build Release APK with Buildozer
+      env:
+        APP_ANDROID_KEYSTORE: key.keystore
+        APP_ANDROID_KEYALIAS: ${{ secrets.KEY_ALIAS }}
+        APP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        APP_ANDROID_KEYALIAS_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        buildozer android release
+
+    - name: Upload Signed APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Signed-Release-APK
+        path: bin/*.apk
