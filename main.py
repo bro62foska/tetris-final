@@ -6,7 +6,7 @@ from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
-from kivy.graphics import Color, Rectangle, Ellipse, Triangle
+from kivy.graphics import Color, Rectangle, Ellipse, Triangle, RoundedRectangle, Line
 from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.metrics import dp
@@ -37,8 +37,7 @@ LANGUAGES = {
         'restart': 'ЗАНОВО',
         'exit': 'ВЫХОД В МЕНЮ',
         'close_app': 'ВЫЙТИ ИЗ ИГРЫ',
-        'menu_title': 'ПАУЗА',
-        'putin': '💥\nПУТИН'
+        'menu_title': 'ПАУЗА'
     },
     'EN': {
         'title': 'TETRIS\n+ POLITICS',
@@ -47,10 +46,101 @@ LANGUAGES = {
         'restart': 'RESTART',
         'exit': 'MAIN MENU',
         'close_app': 'EXIT GAME',
-        'menu_title': 'PAUSE',
-        'putin': '💥\nPUTIN'
+        'menu_title': 'PAUSE'
     }
 }
+
+# --- КНОПКА МЕНЮ («Бургер») ---
+class StylishMenuButton(Button):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.background_color = (0, 0, 0, 0)
+        self.text = ''
+        self.bind(pos=self.update_canvas, size=self.update_canvas, state=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.before.clear()
+        self.canvas.after.clear()
+        
+        with self.canvas.before:
+            Color(0, 0, 0, 0.35)
+            RoundedRectangle(pos=(self.x + dp(2), self.y - dp(2)), size=self.size, radius=[dp(12)])
+            
+            if self.state == 'down':
+                Color(0.2, 0.5, 0.9, 0.95)
+            else:
+                Color(0.12, 0.12, 0.16, 0.85)
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
+            
+            Color(0.3, 0.5, 0.9, 0.5)
+            Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(12)), width=dp(1.2))
+
+        with self.canvas.after:
+            Color(1, 1, 1, 0.9)
+            pad_x = self.width * 0.28
+            start_x = self.x + pad_x
+            end_x = self.x + self.width - pad_x
+            
+            h = self.height
+            line_w = dp(2)
+            
+            Line(points=[start_x, self.y + h * 0.68, end_x, self.y + h * 0.68], width=line_w)
+            Line(points=[start_x, self.y + h * 0.50, end_x, self.y + h * 0.50], width=line_w)
+            Line(points=[start_x, self.y + h * 0.32, end_x, self.y + h * 0.32], width=line_w)
+
+
+# --- КНОПКА «УДАР» В ЦВЕТАХ ФЛАГА РОССИИ ---
+class RussianFlagButton(Button):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.background_color = (0, 0, 0, 0) # Отключаем стандартный фон
+        self.text = '' # Надпись убрана
+        self.bind(pos=self.update_canvas, size=self.update_canvas, state=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.before.clear()
+        if self.width <= 0 or self.height <= 0:
+            return
+
+        with self.canvas.before:
+            # 1. Тень
+            Color(0, 0, 0, 0.4)
+            RoundedRectangle(pos=(self.x + dp(3), self.y - dp(3)), size=self.size, radius=[dp(16)])
+
+            # Расчет полос триколора
+            stripe_h = self.height / 3.0
+            r = dp(16)
+            
+            # Затемнение при нажатии для визуального клика
+            alpha_mod = 0.7 if self.state == 'down' else 1.0
+
+            # 2. Белая полоса (верхняя)
+            Color(0.95 * alpha_mod, 0.95 * alpha_mod, 0.95 * alpha_mod, 0.95)
+            RoundedRectangle(
+                pos=(self.x, self.y + stripe_h * 2), 
+                size=(self.width, stripe_h), 
+                radius=[(r, r), (r, r), (0, 0), (0, 0)]
+            )
+
+            # 3. Синяя полоса (средняя)
+            Color(0.0 * alpha_mod, 0.22 * alpha_mod, 0.66 * alpha_mod, 0.95)
+            Rectangle(
+                pos=(self.x, self.y + stripe_h), 
+                size=(self.width, stripe_h)
+            )
+
+            # 4. Красная полоса (нижняя)
+            Color(0.85 * alpha_mod, 0.1 * alpha_mod, 0.1 * alpha_mod, 0.95)
+            RoundedRectangle(
+                pos=(self.x, self.y), 
+                size=(self.width, stripe_h), 
+                radius=[(0, 0), (0, 0), (r, r), (r, r)]
+            )
+
+            # 5. Стильная рамка поверх кнопки
+            Color(1, 1, 1, 0.6)
+            Line(rounded_rectangle=(self.x, self.y, self.width, self.height, r), width=dp(1.5))
+
 
 class TetrisBoard(Widget):
     def __init__(self, game_ref, **kwargs):
@@ -73,17 +163,18 @@ class TetrisBoard(Widget):
         self.ox = self.x + (self.width - self.board_w) / 2
         self.oy = self.y + (available_height - self.board_h) / 2 + dp(130)
 
+        # Динамический размер кнопки Флага
         if self.game.btn_putin:
-            btn_size = int(self.board_w * 0.45)
-            self.game.btn_putin.size = (btn_size, btn_size)
-            self.game.btn_putin.font_size = f'{int(btn_size * 0.13)}sp'
-            self.game.btn_putin.pos = (self.ox + self.board_w - btn_size, dp(20))
+            btn_w = int(self.board_w * 0.45)
+            btn_h = int(btn_w * 0.6)  # Пропорциональное прямоугольное соотношение флага
+            self.game.btn_putin.size = (btn_w, btn_h)
+            self.game.btn_putin.pos = (self.ox + self.board_w - btn_w, dp(15))
 
+        # Стильная кнопка Меню
         if self.game.btn_menu_dots:
-            menu_size = int(dp(50))
+            menu_size = int(dp(46))
             self.game.btn_menu_dots.size = (menu_size, menu_size)
-            self.game.btn_menu_dots.font_size = f'{int(menu_size * 0.5)}sp'
-            self.game.btn_menu_dots.pos = (self.ox, dp(20))
+            self.game.btn_menu_dots.pos = (self.ox, dp(15))
 
         with self.canvas:
             Color(0.08, 0.08, 0.08, 1)
@@ -109,6 +200,7 @@ class TetrisBoard(Widget):
                                            self.oy + (self.game.piece_y + r) * self.block_size + 1), 
                                       size=(self.block_size - 2, self.block_size - 2))
 
+            # Окошко следующей фигуры
             px = self.ox + self.board_w - (self.block_size * 3) - dp(5)
             py = self.oy + self.board_h - (self.block_size * 3) - dp(5)
             Color(0.2, 0.2, 0.2, 0.7)
@@ -123,6 +215,7 @@ class TetrisBoard(Widget):
                                            py + (r + 0.3) * (self.block_size * 0.7)), 
                                       size=((self.block_size * 0.7) - 2, (self.block_size * 0.7) - 2))
             
+            # Отрисовка Трампа
             if self.game.trump_active:
                 tw = self.block_size * 4  
                 tx = self.game.trump_x
@@ -220,7 +313,6 @@ class TetrisGame(BoxLayout):
         t = LANGUAGES[self.lang]
         menu_layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
         
-        # Переключатель языков
         lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.12), spacing=dp(10))
         btn_ru = Button(text='RU', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.4, 0.4, 0.4, 1))
         btn_en = Button(text='EN', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.4, 0.4, 0.4, 1))
@@ -230,14 +322,11 @@ class TetrisGame(BoxLayout):
         lang_bar.add_widget(btn_en)
         menu_layout.add_widget(lang_bar)
         
-        # Заголовок
         self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.4))
         
-        # Кнопка СТАРТ
         self.btn_start = Button(text=t['play'], font_size='26sp', bold=True, size_hint=(1, 0.24), background_color=(0.2, 0.8, 0.2, 1))
         self.btn_start.bind(on_press=self.start_game)
         
-        # Кнопка ЗАКРЫТЬ ИГРУ
         self.btn_close = Button(text=t['close_app'], font_size='22sp', bold=True, size_hint=(1, 0.2), background_color=(0.8, 0.2, 0.2, 1))
         self.btn_close.bind(on_press=self.close_app)
 
@@ -251,7 +340,6 @@ class TetrisGame(BoxLayout):
         self.show_menu()
 
     def close_app(self, instance):
-        # Завершение работы приложения Kivy
         App.get_running_app().stop()
 
     def start_game(self, instance):
@@ -261,25 +349,17 @@ class TetrisGame(BoxLayout):
         self.trump_active = False
         self.punch_active = False
         
-        t = LANGUAGES[self.lang]
         self.game_container = RelativeLayout(size_hint=(1, 1))
         
         self.board = TetrisBoard(self, size_hint=(1, 1))
         self.game_container.add_widget(self.board)
         
-        self.btn_menu_dots = Button(
-            text='⋮', bold=True,
-            size_hint=(None, None),
-            background_color=(0.2, 0.2, 0.2, 0.85)
-        )
+        self.btn_menu_dots = StylishMenuButton(size_hint=(None, None))
         self.btn_menu_dots.bind(on_press=self.open_pause_popup)
         self.game_container.add_widget(self.btn_menu_dots)
 
-        self.btn_putin = Button(
-            text=t['putin'], bold=True, halign='center',
-            size_hint=(None, None),
-            background_color=(0.9, 0.1, 0.1, 0.95)
-        )
+        # Подключаем новую триколор-кнопку без текста
+        self.btn_putin = RussianFlagButton(size_hint=(None, None))
         self.btn_putin.bind(on_press=self.putin_punch)
         
         self.add_widget(self.game_container)
