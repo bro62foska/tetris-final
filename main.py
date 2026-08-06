@@ -1,4 +1,5 @@
 import random
+import os
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.relativelayout import RelativeLayout
@@ -6,10 +7,12 @@ from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.scrollview import ScrollView
 from kivy.graphics import Color, Rectangle, Ellipse, Triangle, RoundedRectangle, Line
 from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.metrics import dp
+from kivy.storage.jsonstore import JsonStore
 
 GRID_WIDTH = 10
 GRID_HEIGHT = 20
@@ -33,7 +36,7 @@ LANGUAGES = {
     'RU': {
         'title': 'ТЕТРИС\n+ ГЕОПОЛИТИКА',
         'play': 'ИГРАТЬ',
-        'settings': '⚙ НАСТРОЙКИ',
+        'settings': 'НАСТРОЙКИ',
         'resume': 'ПРОДОЛЖИТЬ',
         'restart': 'ЗАНОВО',
         'exit': 'ВЫХОД В МЕНЮ',
@@ -41,19 +44,25 @@ LANGUAGES = {
         'menu_title': 'ПАУЗА',
         'settings_title': 'НАСТРОЙКИ',
         'close': 'ЗАКРЫТЬ',
+        'score': 'СЧЁТ',
+        'highscore': 'РЕКОРД',
+        'coins': 'МОНЕТЫ',
         'instruction_title': 'КАК ИГРАТЬ:',
         'instructions': (
-            "• Свайп Влево / Вправо — передвижение\n"
+            "• Свайп Влево / Вправо — передвижение фигуры\n"
             "• Свайп Вверх — повернуть фигуру\n"
-            "• Свайп Вниз — быстро сбросить\n\n"
-            "💥 ОСОБЕННОСТЬ:\n"
-            "Когда Трамп крадет палку/квадрат, жми на КНОПКУ-ТРИКОЛОР!"
+            "• Свайп Вниз — быстро сбросить вниз\n\n"
+            "ОСОБЕННОСТЬ (ВОР И ФЛАГ):\n"
+            "Иногда на поле прибегает воришка, чтобы утащить ценную фигуру!\n\n"
+            "КАК ЗАЩИТИТЬСЯ:\n"
+            "Как только появляется воришка, снизу вылетает КНОПКА-ФЛАГ.\n"
+            "Жми на нее быстро, чтобы спасти свою фигуру!"
         )
     },
     'EN': {
         'title': 'TETRIS\n+ POLITICS',
         'play': 'PLAY',
-        'settings': '⚙ SETTINGS',
+        'settings': 'SETTINGS',
         'resume': 'RESUME',
         'restart': 'RESTART',
         'exit': 'MAIN MENU',
@@ -61,18 +70,24 @@ LANGUAGES = {
         'menu_title': 'PAUSE',
         'settings_title': 'SETTINGS',
         'close': 'CLOSE',
+        'score': 'SCORE',
+        'highscore': 'HI-SCORE',
+        'coins': 'COINS',
         'instruction_title': 'HOW TO PLAY:',
         'instructions': (
             "• Swipe Left / Right — move piece\n"
             "• Swipe Up — rotate piece\n"
             "• Swipe Down — hard drop\n\n"
-            "💥 SPECIAL FEATURE:\n"
-            "When Trump steals a piece, tap the FLAG BUTTON!"
+            "SPECIAL FEATURE (THIEF & FLAG):\n"
+            "Sometimes a thief runs in to steal a valuable piece!\n\n"
+            "HOW TO DEFEND:\n"
+            "As soon as the thief appears, a FLAG BUTTON appears below.\n"
+            "Tap it quickly to save your piece!"
         )
     }
 }
 
-# --- КНОПКА МЕНЮ («Бургер») ---
+
 class StylishMenuButton(Button):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -111,7 +126,6 @@ class StylishMenuButton(Button):
             Line(points=[start_x, self.y + h * 0.32, end_x, self.y + h * 0.32], width=line_w)
 
 
-# --- КНОПКА В ЦВЕТАХ ФЛАГА РОССИИ ---
 class RussianFlagButton(Button):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -132,21 +146,17 @@ class RussianFlagButton(Button):
             r = dp(16)
             alpha_mod = 0.7 if self.state == 'down' else 1.0
 
-            # Белый
             Color(0.95 * alpha_mod, 0.95 * alpha_mod, 0.95 * alpha_mod, 0.95)
             RoundedRectangle(pos=(self.x, self.y + stripe_h * 2), size=(self.width, stripe_h), radius=[(r, r), (r, r), (0, 0), (0, 0)])
 
-            # Синий
             Color(0.0 * alpha_mod, 0.22 * alpha_mod, 0.66 * alpha_mod, 0.95)
             Rectangle(pos=(self.x, self.y + stripe_h), size=(self.width, stripe_h))
 
-            # Красный
             Color(0.85 * alpha_mod, 0.1 * alpha_mod, 0.1 * alpha_mod, 0.95)
             RoundedRectangle(pos=(self.x, self.y), size=(self.width, stripe_h), radius=[(0, 0), (0, 0), (r, r), (r, r)])
 
-            # Рамка
-            Color(1, 1, 1, 0.6)
-            Line(rounded_rectangle=(self.x, self.y, self.width, self.height, r), width=dp(1.5))
+            Color(1, 1, 1, 0.8)
+            Line(rounded_rectangle=(self.x, self.y, self.width, self.height, r), width=dp(2))
 
 
 class TetrisBoard(Widget):
@@ -161,13 +171,13 @@ class TetrisBoard(Widget):
         if self.width <= 0 or self.height <= 0 or self.game.state not in ['playing', 'paused']:
             return
         
-        available_height = self.height - dp(150)
+        available_height = self.height - dp(180)
         self.block_size = min(self.width / GRID_WIDTH, available_height / GRID_HEIGHT)
         self.board_w = self.block_size * GRID_WIDTH
         self.board_h = self.block_size * GRID_HEIGHT
         
         self.ox = self.x + (self.width - self.board_w) / 2
-        self.oy = self.y + (available_height - self.board_h) / 2 + dp(130)
+        self.oy = self.y + (available_height - self.board_h) / 2 + dp(80)
 
         if self.game.btn_putin:
             btn_w = int(self.board_w * 0.45)
@@ -179,6 +189,17 @@ class TetrisBoard(Widget):
             menu_size = int(dp(46))
             self.game.btn_menu_dots.size = (menu_size, menu_size)
             self.game.btn_menu_dots.pos = (self.ox, dp(15))
+
+        # Обновление текста статистики
+        if self.game.lbl_stats:
+            t = LANGUAGES[self.game.lang]
+            self.game.lbl_stats.text = (
+                f"{t['score']}: {self.game.score}  |  "
+                f"{t['highscore']}: {self.game.highscore}\n"
+                f"{t['coins']}: {self.game.coins}"
+            )
+            self.game.lbl_stats.pos = (self.ox, self.oy + self.board_h + dp(10))
+            self.game.lbl_stats.size = (self.board_w, dp(50))
 
         with self.canvas:
             Color(0.08, 0.08, 0.08, 1)
@@ -299,6 +320,12 @@ class TetrisGame(BoxLayout):
         self.lang = 'RU' 
         self.grid = [[None for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
         
+        # Подключаем JsonStore для сохранений
+        self.store = JsonStore('tetris_save.json')
+        self.load_data()
+        
+        self.score = 0 # Текущий счёт сбрасывается
+        
         self.trump_active = False
         self.trump_x = -500
         self.trump_speed = 18
@@ -308,26 +335,40 @@ class TetrisGame(BoxLayout):
         self.next_shape = None
         self.btn_putin = None
         self.btn_menu_dots = None
+        self.lbl_stats = None
         self.show_menu()
+
+    def load_data(self):
+        """Загрузка рекорда и монет из файла"""
+        if self.store.exists('game_data'):
+            data = self.store.get('game_data')
+            self.highscore = data.get('highscore', 0)
+            self.coins = data.get('coins', 0)
+        else:
+            self.highscore = 0
+            self.coins = 0
+            self.save_data()
+
+    def save_data(self):
+        """Сохранение рекорда и монет в файл"""
+        self.store.put('game_data', highscore=self.highscore, coins=self.coins)
 
     def show_menu(self):
         self.clear_widgets()
         t = LANGUAGES[self.lang]
         menu_layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
         
-        # Название
-        self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.35))
+        # Обновленный логотип, показывающий рекорд и монеты прямо в меню
+        menu_info = f"{t['title']}\n\n{t['highscore']}: {self.highscore}\n{t['coins']}: {self.coins}"
+        self.logo = Label(text=menu_info, font_size='24sp', halign='center', bold=True, size_hint=(1, 0.4))
         
-        # Кнопка СТАРТ
-        self.btn_start = Button(text=t['play'], font_size='26sp', bold=True, size_hint=(1, 0.22), background_color=(0.2, 0.8, 0.2, 1))
+        self.btn_start = Button(text=t['play'], font_size='26sp', bold=True, size_hint=(1, 0.2), background_color=(0.2, 0.8, 0.2, 1))
         self.btn_start.bind(on_press=self.start_game)
 
-        # Кнопка НАСТРОЙКИ
         self.btn_settings = Button(text=t['settings'], font_size='22sp', bold=True, size_hint=(1, 0.2), background_color=(0.2, 0.6, 1, 1))
         self.btn_settings.bind(on_press=self.open_settings_popup)
         
-        # Кнопка ВЫХОД ИЗ ИГРЫ
-        self.btn_close = Button(text=t['close_app'], font_size='20sp', bold=True, size_hint=(1, 0.18), background_color=(0.8, 0.2, 0.2, 1))
+        self.btn_close = Button(text=t['close_app'], font_size='20sp', bold=True, size_hint=(1, 0.2), background_color=(0.8, 0.2, 0.2, 1))
         self.btn_close.bind(on_press=self.close_app)
 
         menu_layout.add_widget(self.logo)
@@ -338,28 +379,39 @@ class TetrisGame(BoxLayout):
 
     def open_settings_popup(self, instance):
         t = LANGUAGES[self.lang]
-        content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
+        content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
 
-        # Выбор языка
-        lang_label = Label(text="ЯЗЫК / LANGUAGE", font_size='14sp', bold=True, size_hint=(1, 0.12), color=(0.7, 0.7, 0.7, 1))
-        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.18), spacing=dp(10))
-        btn_ru = Button(text='RU', font_size='16sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.3, 0.3, 0.3, 1))
-        btn_en = Button(text='EN', font_size='16sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.3, 0.3, 0.3, 1))
+        lang_label = Label(text="LANGUAGE / ЯЗЫК", font_size='14sp', bold=True, size_hint=(1, None), height=dp(25), color=(0.8, 0.8, 0.8, 1))
+        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, None), height=dp(42), spacing=dp(8))
+        
+        btn_ru = Button(text='RU', font_size='15sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.3, 0.3, 0.3, 1))
+        btn_en = Button(text='EN', font_size='15sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.3, 0.3, 0.3, 1))
         
         lang_bar.add_widget(btn_ru)
         lang_bar.add_widget(btn_en)
 
-        # Инструкция
-        instr_title = Label(text=t['instruction_title'], font_size='16sp', bold=True, size_hint=(1, 0.12), color=(1, 0.8, 0.2, 1))
-        instr_text = Label(text=t['instructions'], font_size='13sp', halign='center', valign='center', size_hint=(1, 0.45))
-        instr_text.bind(size=instr_text.setter('text_size'))
+        instr_title = Label(text=t['instruction_title'], font_size='16sp', bold=True, size_hint=(1, None), height=dp(30), color=(1, 0.8, 0.2, 1))
+        
+        scroll = ScrollView(size_hint=(1, 1), do_scroll_x=False)
+        instr_text = Label(
+            text=t['instructions'], 
+            font_size='13sp', 
+            halign='left', 
+            valign='top', 
+            size_hint_y=None,
+            color=(0.9, 0.9, 0.9, 1)
+        )
+        instr_text.bind(width=lambda*x: setattr(instr_text, 'text_size', (instr_text.width, None)))
+        instr_text.bind(texture_size=lambda*x: setattr(instr_text, 'height', instr_text.texture_size[1]))
+        scroll.add_widget(instr_text)
 
-        # Кнопка закрытия
-        btn_close_popup = Button(text=t['close'], font_size='16sp', bold=True, size_hint=(1, 0.18), background_color=(0.8, 0.2, 0.2, 1))
+        btn_close_popup = Button(text=t['close'], font_size='16sp', bold=True, size_hint=(1, None), height=dp(45), background_color=(0.8, 0.2, 0.2, 1))
 
         popup = Popup(
-            title=t['settings_title'], content=content,
-            size_hint=(0.88, 0.65), auto_dismiss=True
+            title=t['settings_title'], 
+            content=content,
+            size_hint=(0.92, 0.78), 
+            auto_dismiss=True
         )
 
         def switch_lang(new_lang):
@@ -375,7 +427,7 @@ class TetrisGame(BoxLayout):
         content.add_widget(lang_label)
         content.add_widget(lang_bar)
         content.add_widget(instr_title)
-        content.add_widget(instr_text)
+        content.add_widget(scroll)
         content.add_widget(btn_close_popup)
 
         popup.open()
@@ -389,11 +441,17 @@ class TetrisGame(BoxLayout):
         self.grid = [[None for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
         self.trump_active = False
         self.punch_active = False
+        self.score = 0
+        self.load_data() # Подгружаем актуальные монеты и рекорд перед матчем
         
         self.game_container = RelativeLayout(size_hint=(1, 1))
         
         self.board = TetrisBoard(self, size_hint=(1, 1))
         self.game_container.add_widget(self.board)
+        
+        # Информационная панель (Счёт, Рекорд и Монеты)
+        self.lbl_stats = Label(text="", font_size='16sp', bold=True, color=(1, 1, 1, 1), size_hint=(None, None), halign='center')
+        self.game_container.add_widget(self.lbl_stats)
         
         self.btn_menu_dots = StylishMenuButton(size_hint=(None, None))
         self.btn_menu_dots.bind(on_press=self.open_pause_popup)
@@ -455,6 +513,7 @@ class TetrisGame(BoxLayout):
     def exit_to_menu(self, instance):
         Clock.unschedule(self.update)
         self.state = 'menu'
+        self.save_data() # На всякий случай сохраняем при выходе
         self.show_menu()
 
     def spawn_piece(self):
@@ -542,9 +601,27 @@ class TetrisGame(BoxLayout):
         self.spawn_piece()
 
     def clear_rows(self):
-        self.grid = [row for row in self.grid if any(x is None for x in row)]
-        while len(self.grid) < GRID_HEIGHT:
-            self.grid.append([None for _ in range(GRID_WIDTH)])
+        cleared_rows = [row for row in self.grid if any(x is None for x in row)]
+        lines_count = GRID_HEIGHT - len(cleared_rows)
+        
+        if lines_count > 0:
+            # Начисление очков
+            score_rewards = {1: 100, 2: 300, 3: 700, 4: 1500}
+            self.score += score_rewards.get(lines_count, 1500)
+            
+            # Если побили рекорд — обновляем его сразу
+            if self.score > self.highscore:
+                self.highscore = self.score
+            
+            # Начисление монет (10 за линию)
+            self.coins += lines_count * 10
+            
+            # Сохраняем новые данные на устройство
+            self.save_data()
+            
+            self.grid = cleared_rows
+            while len(self.grid) < GRID_HEIGHT:
+                self.grid.append([None for _ in range(GRID_WIDTH)])
 
     def move_left(self, instance):
         if self.state == 'playing' and not self.check_collision(-1, 0): self.piece_x -= 1
