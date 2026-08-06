@@ -33,20 +33,42 @@ LANGUAGES = {
     'RU': {
         'title': 'ТЕТРИС\n+ ГЕОПОЛИТИКА',
         'play': 'ИГРАТЬ',
+        'settings': '⚙ НАСТРОЙКИ',
         'resume': 'ПРОДОЛЖИТЬ',
         'restart': 'ЗАНОВО',
         'exit': 'ВЫХОД В МЕНЮ',
         'close_app': 'ВЫЙТИ ИЗ ИГРЫ',
-        'menu_title': 'ПАУЗА'
+        'menu_title': 'ПАУЗА',
+        'settings_title': 'НАСТРОЙКИ',
+        'close': 'ЗАКРЫТЬ',
+        'instruction_title': 'КАК ИГРАТЬ:',
+        'instructions': (
+            "• Свайп Влево / Вправо — передвижение\n"
+            "• Свайп Вверх — повернуть фигуру\n"
+            "• Свайп Вниз — быстро сбросить\n\n"
+            "💥 ОСОБЕННОСТЬ:\n"
+            "Когда Трамп крадет палку/квадрат, жми на КНОПКУ-ТРИКОЛОР!"
+        )
     },
     'EN': {
         'title': 'TETRIS\n+ POLITICS',
         'play': 'PLAY',
+        'settings': '⚙ SETTINGS',
         'resume': 'RESUME',
         'restart': 'RESTART',
         'exit': 'MAIN MENU',
         'close_app': 'EXIT GAME',
-        'menu_title': 'PAUSE'
+        'menu_title': 'PAUSE',
+        'settings_title': 'SETTINGS',
+        'close': 'CLOSE',
+        'instruction_title': 'HOW TO PLAY:',
+        'instructions': (
+            "• Swipe Left / Right — move piece\n"
+            "• Swipe Up — rotate piece\n"
+            "• Swipe Down — hard drop\n\n"
+            "💥 SPECIAL FEATURE:\n"
+            "When Trump steals a piece, tap the FLAG BUTTON!"
+        )
     }
 }
 
@@ -89,12 +111,12 @@ class StylishMenuButton(Button):
             Line(points=[start_x, self.y + h * 0.32, end_x, self.y + h * 0.32], width=line_w)
 
 
-# --- КНОПКА «УДАР» В ЦВЕТАХ ФЛАГА РОССИИ ---
+# --- КНОПКА В ЦВЕТАХ ФЛАГА РОССИИ ---
 class RussianFlagButton(Button):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.background_color = (0, 0, 0, 0) # Отключаем стандартный фон
-        self.text = '' # Надпись убрана
+        self.background_color = (0, 0, 0, 0)
+        self.text = ''
         self.bind(pos=self.update_canvas, size=self.update_canvas, state=self.update_canvas)
 
     def update_canvas(self, *args):
@@ -103,41 +125,26 @@ class RussianFlagButton(Button):
             return
 
         with self.canvas.before:
-            # 1. Тень
             Color(0, 0, 0, 0.4)
             RoundedRectangle(pos=(self.x + dp(3), self.y - dp(3)), size=self.size, radius=[dp(16)])
 
-            # Расчет полос триколора
             stripe_h = self.height / 3.0
             r = dp(16)
-            
-            # Затемнение при нажатии для визуального клика
             alpha_mod = 0.7 if self.state == 'down' else 1.0
 
-            # 2. Белая полоса (верхняя)
+            # Белый
             Color(0.95 * alpha_mod, 0.95 * alpha_mod, 0.95 * alpha_mod, 0.95)
-            RoundedRectangle(
-                pos=(self.x, self.y + stripe_h * 2), 
-                size=(self.width, stripe_h), 
-                radius=[(r, r), (r, r), (0, 0), (0, 0)]
-            )
+            RoundedRectangle(pos=(self.x, self.y + stripe_h * 2), size=(self.width, stripe_h), radius=[(r, r), (r, r), (0, 0), (0, 0)])
 
-            # 3. Синяя полоса (средняя)
+            # Синий
             Color(0.0 * alpha_mod, 0.22 * alpha_mod, 0.66 * alpha_mod, 0.95)
-            Rectangle(
-                pos=(self.x, self.y + stripe_h), 
-                size=(self.width, stripe_h)
-            )
+            Rectangle(pos=(self.x, self.y + stripe_h), size=(self.width, stripe_h))
 
-            # 4. Красная полоса (нижняя)
+            # Красный
             Color(0.85 * alpha_mod, 0.1 * alpha_mod, 0.1 * alpha_mod, 0.95)
-            RoundedRectangle(
-                pos=(self.x, self.y), 
-                size=(self.width, stripe_h), 
-                radius=[(0, 0), (0, 0), (r, r), (r, r)]
-            )
+            RoundedRectangle(pos=(self.x, self.y), size=(self.width, stripe_h), radius=[(0, 0), (0, 0), (r, r), (r, r)])
 
-            # 5. Стильная рамка поверх кнопки
+            # Рамка
             Color(1, 1, 1, 0.6)
             Line(rounded_rectangle=(self.x, self.y, self.width, self.height, r), width=dp(1.5))
 
@@ -155,7 +162,6 @@ class TetrisBoard(Widget):
             return
         
         available_height = self.height - dp(150)
-        
         self.block_size = min(self.width / GRID_WIDTH, available_height / GRID_HEIGHT)
         self.board_w = self.block_size * GRID_WIDTH
         self.board_h = self.block_size * GRID_HEIGHT
@@ -163,14 +169,12 @@ class TetrisBoard(Widget):
         self.ox = self.x + (self.width - self.board_w) / 2
         self.oy = self.y + (available_height - self.board_h) / 2 + dp(130)
 
-        # Динамический размер кнопки Флага
         if self.game.btn_putin:
             btn_w = int(self.board_w * 0.45)
-            btn_h = int(btn_w * 0.6)  # Пропорциональное прямоугольное соотношение флага
+            btn_h = int(btn_w * 0.6)
             self.game.btn_putin.size = (btn_w, btn_h)
             self.game.btn_putin.pos = (self.ox + self.board_w - btn_w, dp(15))
 
-        # Стильная кнопка Меню
         if self.game.btn_menu_dots:
             menu_size = int(dp(46))
             self.game.btn_menu_dots.size = (menu_size, menu_size)
@@ -200,7 +204,6 @@ class TetrisBoard(Widget):
                                            self.oy + (self.game.piece_y + r) * self.block_size + 1), 
                                       size=(self.block_size - 2, self.block_size - 2))
 
-            # Окошко следующей фигуры
             px = self.ox + self.board_w - (self.block_size * 3) - dp(5)
             py = self.oy + self.board_h - (self.block_size * 3) - dp(5)
             Color(0.2, 0.2, 0.2, 0.7)
@@ -215,7 +218,6 @@ class TetrisBoard(Widget):
                                            py + (r + 0.3) * (self.block_size * 0.7)), 
                                       size=((self.block_size * 0.7) - 2, (self.block_size * 0.7) - 2))
             
-            # Отрисовка Трампа
             if self.game.trump_active:
                 tw = self.block_size * 4  
                 tx = self.game.trump_x
@@ -313,31 +315,70 @@ class TetrisGame(BoxLayout):
         t = LANGUAGES[self.lang]
         menu_layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
         
-        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.12), spacing=dp(10))
-        btn_ru = Button(text='RU', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.4, 0.4, 0.4, 1))
-        btn_en = Button(text='EN', font_size='18sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.4, 0.4, 0.4, 1))
-        btn_ru.bind(on_press=lambda inst: self.change_lang('RU'))
-        btn_en.bind(on_press=lambda inst: self.change_lang('EN'))
-        lang_bar.add_widget(btn_ru)
-        lang_bar.add_widget(btn_en)
-        menu_layout.add_widget(lang_bar)
+        # Название
+        self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.35))
         
-        self.logo = Label(text=t['title'], font_size='28sp', halign='center', bold=True, size_hint=(1, 0.4))
-        
-        self.btn_start = Button(text=t['play'], font_size='26sp', bold=True, size_hint=(1, 0.24), background_color=(0.2, 0.8, 0.2, 1))
+        # Кнопка СТАРТ
+        self.btn_start = Button(text=t['play'], font_size='26sp', bold=True, size_hint=(1, 0.22), background_color=(0.2, 0.8, 0.2, 1))
         self.btn_start.bind(on_press=self.start_game)
+
+        # Кнопка НАСТРОЙКИ
+        self.btn_settings = Button(text=t['settings'], font_size='22sp', bold=True, size_hint=(1, 0.2), background_color=(0.2, 0.6, 1, 1))
+        self.btn_settings.bind(on_press=self.open_settings_popup)
         
-        self.btn_close = Button(text=t['close_app'], font_size='22sp', bold=True, size_hint=(1, 0.2), background_color=(0.8, 0.2, 0.2, 1))
+        # Кнопка ВЫХОД ИЗ ИГРЫ
+        self.btn_close = Button(text=t['close_app'], font_size='20sp', bold=True, size_hint=(1, 0.18), background_color=(0.8, 0.2, 0.2, 1))
         self.btn_close.bind(on_press=self.close_app)
 
         menu_layout.add_widget(self.logo)
         menu_layout.add_widget(self.btn_start)
+        menu_layout.add_widget(self.btn_settings)
         menu_layout.add_widget(self.btn_close)
         self.add_widget(menu_layout)
 
-    def change_lang(self, new_lang):
-        self.lang = new_lang
-        self.show_menu()
+    def open_settings_popup(self, instance):
+        t = LANGUAGES[self.lang]
+        content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(12))
+
+        # Выбор языка
+        lang_label = Label(text="ЯЗЫК / LANGUAGE", font_size='14sp', bold=True, size_hint=(1, 0.12), color=(0.7, 0.7, 0.7, 1))
+        lang_bar = BoxLayout(orientation='horizontal', size_hint=(1, 0.18), spacing=dp(10))
+        btn_ru = Button(text='RU', font_size='16sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'RU' else (0.3, 0.3, 0.3, 1))
+        btn_en = Button(text='EN', font_size='16sp', bold=True, background_color=(0.2, 0.6, 1, 1) if self.lang == 'EN' else (0.3, 0.3, 0.3, 1))
+        
+        lang_bar.add_widget(btn_ru)
+        lang_bar.add_widget(btn_en)
+
+        # Инструкция
+        instr_title = Label(text=t['instruction_title'], font_size='16sp', bold=True, size_hint=(1, 0.12), color=(1, 0.8, 0.2, 1))
+        instr_text = Label(text=t['instructions'], font_size='13sp', halign='center', valign='center', size_hint=(1, 0.45))
+        instr_text.bind(size=instr_text.setter('text_size'))
+
+        # Кнопка закрытия
+        btn_close_popup = Button(text=t['close'], font_size='16sp', bold=True, size_hint=(1, 0.18), background_color=(0.8, 0.2, 0.2, 1))
+
+        popup = Popup(
+            title=t['settings_title'], content=content,
+            size_hint=(0.88, 0.65), auto_dismiss=True
+        )
+
+        def switch_lang(new_lang):
+            self.lang = new_lang
+            popup.dismiss()
+            self.show_menu()
+            self.open_settings_popup(None)
+
+        btn_ru.bind(on_press=lambda inst: switch_lang('RU'))
+        btn_en.bind(on_press=lambda inst: switch_lang('EN'))
+        btn_close_popup.bind(on_press=popup.dismiss)
+
+        content.add_widget(lang_label)
+        content.add_widget(lang_bar)
+        content.add_widget(instr_title)
+        content.add_widget(instr_text)
+        content.add_widget(btn_close_popup)
+
+        popup.open()
 
     def close_app(self, instance):
         App.get_running_app().stop()
@@ -358,7 +399,6 @@ class TetrisGame(BoxLayout):
         self.btn_menu_dots.bind(on_press=self.open_pause_popup)
         self.game_container.add_widget(self.btn_menu_dots)
 
-        # Подключаем новую триколор-кнопку без текста
         self.btn_putin = RussianFlagButton(size_hint=(None, None))
         self.btn_putin.bind(on_press=self.putin_punch)
         
