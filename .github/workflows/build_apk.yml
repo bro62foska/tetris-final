@@ -1,8 +1,8 @@
-name: Super Tetris Build
+name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
@@ -10,36 +10,32 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev readline-common libreadline-dev libffi-dev cython3
-        pip install --upgrade pip
-        pip install buildozer cython
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git unzip zip python3-pip \
+          python3-setuptools libffi-dev libssl-dev libltdl-dev cmake \
+          openjdk-17-jdk
 
-    - name: Decode Keystore
-      run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > key.keystore
+      - name: Install Buildozer and Cython
+        run: |
+          python -m pip install --upgrade pip
+          pip install buildozer==1.5.0 "cython<3.0.0" virtualenv
 
-    - name: Build Release APK with Buildozer
-      env:
-        APP_ANDROID_KEYSTORE: key.keystore
-        APP_ANDROID_KEYALIAS: ${{ secrets.KEY_ALIAS }}
-        APP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        APP_ANDROID_KEYALIAS_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        buildozer android release
+      - name: Build APK with Buildozer
+        run: |
+          buildozer android debug
 
-    - name: Upload Signed APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: Signed-Release-APK
-        path: bin/*.apk
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TetrisGeo-APK
+          path: bin/*.apk
