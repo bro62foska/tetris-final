@@ -1,26 +1,62 @@
 [app]
-title = Tetris Geopolitics
+
+# (str) Title of your application
+title = TetrisGeo
+
+# (str) Package name
 package.name = tetrisgeo
-package.domain = org.tetris
+
+# (str) Package domain (needed for android packaging)
+package.domain = org.tetrisgeo
+
+# (str) Source code where the main.py lives
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-# (str) Icon of the application
-icon.filename = icon.png
+
+# (list) Source files to include
+source.include_exts = py,png,jpg,kv,atlas,json,wav,mp3
+
+# (list) List of inclusions using pattern matching
+#source.include_patterns = assets/*,images/*.png
+
+# (str) Application versioning
 version = 0.1
 
-# Зависимости
-requirements = python3,kivy
+# (list) Application requirements
+# Стабильные версии Kivy и Cython для защиты от ошибок компиляции NDK
+requirements = python3,kivy==2.3.0,cython==0.29.33
 
+# (str) Presumed orientation (portrait, landscape, sensor-landscape, etc.)
 orientation = portrait
+
+# (bool) Indicate if the application should be fullscreen or not
 fullscreen = 1
 
-# Настройки Android SDK / NDK
+# (list) Permissions (раскомментируйте при необходимости)
+# android.permissions = INTERNET
+
+# (int) Target Android API
 android.api = 33
+
+# (int) Minimum API your APK will support
 android.minapi = 21
-android.ndk = 26b
-android.accept_sdk_license = True
+
+# (str) Android NDK version to use
+android.ndk = 25b
+
+# (list) List of Android architectures to build for (arm64-v8a для большинства смартфонов)
 android.archs = arm64-v8a
 
+# (bool) Enable Android auto backup feature
+android.allow_backup = True
+
+# (str) A branch to checkout of python-for-android
+# Флаг 'develop' решает конфликты со скачиванием экспериментального Python 3.14
+p4a.branch = develop
+
 [buildozer]
+
+# (int) Log level (0 = error only, 1 = info, 2 = debug)
 log_level = 2
+
+# (int) Display warning if buildozer is run as root
 warn_on_root = 1
