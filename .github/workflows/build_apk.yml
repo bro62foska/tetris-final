@@ -1,4 +1,4 @@
-0name: Build Android APK
+name: Build Android APK
 
 on:
   push:
@@ -25,15 +25,15 @@ jobs:
           python3-setuptools libffi-dev libssl-dev libltdl-dev cmake \
           openjdk-17-jdk
 
-      - name: Install dependencies
+      - name: Install Buildozer and Cython
         run: |
           python -m pip install --upgrade pip
-          pip install cython==0.29.33 buildozer
+          pip install buildozer==1.5.0 cython==0.29.33 virtualenv
 
-
-      - name: Build APK with Buildozer
+      - name: Build APK with Auto-Accept Licenses
         run: |
-          buildozer android debug
+          # Передача 'yes' автоматически принимает все лицензии SDK
+          yes | buildozer android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
