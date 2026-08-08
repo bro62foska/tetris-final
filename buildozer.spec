@@ -15,14 +15,11 @@ source.dir = .
 # (list) Source files to include
 source.include_exts = py,png,jpg,kv,atlas,json,wav,mp3
 
-# (list) List of inclusions using pattern matching
-#source.include_patterns = assets/*,images/*.png
-
 # (str) Application versioning
 version = 0.1
 
 # (list) Application requirements
-# Стабильные версии Kivy и Cython для защиты от ошибок компиляции NDK
+# Зафиксированы Kivy 2.3.0 и Cython 0.29.33 для исключения ошибок компиляции GIL
 requirements = python3,kivy==2.3.0,cython==0.29.33
 
 # (str) Presumed orientation (portrait, landscape, sensor-landscape, etc.)
@@ -31,8 +28,8 @@ orientation = portrait
 # (bool) Indicate if the application should be fullscreen or not
 fullscreen = 1
 
-# (list) Permissions (раскомментируйте при необходимости)
-# android.permissions = INTERNET
+# (bool) Автоматическое принятие лицензий Android SDK (решает ошибку с build-tools 37)
+android.accept_sdk_license = True
 
 # (int) Target Android API
 android.api = 33
@@ -43,14 +40,14 @@ android.minapi = 21
 # (str) Android NDK version to use
 android.ndk = 25b
 
-# (list) List of Android architectures to build for (arm64-v8a для большинства смартфонов)
+# (list) List of Android architectures to build for
 android.archs = arm64-v8a
 
 # (bool) Enable Android auto backup feature
 android.allow_backup = True
 
 # (str) A branch to checkout of python-for-android
-# Флаг 'develop' решает конфликты со скачиванием экспериментального Python 3.14
+# Ветка develop предотвращает затягивание экспериментального Python 3.14
 p4a.branch = develop
 
 [buildozer]
