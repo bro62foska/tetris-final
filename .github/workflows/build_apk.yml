@@ -27,12 +27,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential ccache git libffi-dev libssl-dev python3-dev zip unzip zlib1g-dev openjdk-17-jdk
-
-      - name: Accept Android SDK Licenses
-        run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-          printf "243337023b064d49a2efc357f4d387f1d9a0a3e9\nd56f5187479451eabf01fb78af6dfcb131a6481e\n2432070fac19d808d132aafd464797639d99944e\n8933b54c1d30032543f9521323b140232230113c\n6010071570f435b92b442033a570758d66a44300" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          sudo apt-get install -y build-essential ccache git libffi-dev libssl-dev python3-dev zip unzip zlib1g-dev openjdk-17-jdk autoconf libtool pkg-config
 
       - name: Build with Buildozer
         run: |
