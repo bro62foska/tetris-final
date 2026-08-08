@@ -28,7 +28,7 @@ orientation = portrait
 # (bool) Indicate if the application should be fullscreen or not
 fullscreen = 1
 
-# (bool) Автоматическое принятие лицензий Android SDK (решает ошибку с build-tools 37)
+# (bool) Автоматическое принятие лицензий Android SDK
 android.accept_sdk_license = True
 
 # (int) Target Android API
@@ -39,6 +39,9 @@ android.minapi = 21
 
 # (str) Android NDK version to use
 android.ndk = 25b
+
+# (str) Фиксация рабочей версии Build-Tools (устраняет ошибку Aidl)
+android.build_tools_version = 33.0.2
 
 # (list) List of Android architectures to build for
 android.archs = arm64-v8a
