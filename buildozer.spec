@@ -1,6 +1,6 @@
 [app]
 
-# Название и идентификаторы приложения
+# Основная информация
 title = Tetris Geo
 package.name = tetrisgeo
 package.domain = org.tetris
@@ -11,25 +11,24 @@ source.include_exts = py,png,jpg,kv,atlas
 
 version = 0.1
 
-# Требования к сборке
+# Зависимости (не указывайте точную версию python3, чтобы p4a выбрал совместимую)
 requirements = python3,kivy==2.3.0
 
-# Настройки экрана
+# Ориентация
 orientation = portrait
 fullscreen = 0
 
-# Разрешения Android
+# Разрешения
 android.permissions = INTERNET
 
-# Настройки SDK / NDK
+# Настройки SDK и NDK
 android.api = 33
 android.minapi = 21
 android.ndk = 25b
 android.archs = arm64-v8a
 android.accept_sdk_license = True
 
-# КРИТИЧНО: Запрещаем подгрузку нестабильной ветки master с Python 3.14.
-# Фиксируем проверенный релиз python-for-android
+# Принудительная фиксация стабильного ветки p4a во избежание сбоев с новыми версиями Python
 p4a.branch = v2024.01.21
 
 [buildozer]
