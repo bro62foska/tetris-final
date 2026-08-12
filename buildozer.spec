@@ -11,7 +11,7 @@ source.include_exts = py,png,jpg,kv,atlas
 
 version = 0.1
 
-# Зависимости: стандартный рецепт python3 и зафиксированный Kivy
+# Требования: указываем python3 без явного номера версии для автоматического согласования
 requirements = python3,kivy==2.3.0
 
 # Настройки экрана
