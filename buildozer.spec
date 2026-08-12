@@ -1,30 +1,27 @@
 [app]
 
-# Название приложения
+# Название и уникальный идентификатор приложения
 title = Tetris Geo
-# Имя пакета (должно быть уникальным)
 package.name = tetrisgeo
-# Домен (вместе с именем пакета формирует уникальный ID)
 package.domain = org.tetris
-# Исходный код (точка означает текущую папку)
+
+# Исходный код
 source.dir = .
-# Расширения файлов для упаковки
 source.include_exts = py,png,jpg,kv,atlas
 
-# Версия
 version = 0.1
 
-# Требования (библиотеки)
-requirements = python3,kivy==2.3.0
+# КРИТИЧНО: Явно фиксируем целевую версию Python (3.11.5) для Android
+requirements = python3==3.11.5,kivy==2.3.0
 
-# Настройки экрана
+# Ориентация экрана
 orientation = portrait
 fullscreen = 0
 
 # Разрешения Android
 android.permissions = INTERNET
 
-# Настройки Android SDK/NDK
+# Настройки SDK/NDK
 android.api = 33
 android.minapi = 21
 android.ndk = 25b
@@ -32,7 +29,5 @@ android.archs = arm64-v8a
 android.accept_sdk_license = True
 
 [buildozer]
-
-# Уровень логов (2 — подробный)
 log_level = 2
 warn_on_root = 1
