@@ -45,10 +45,10 @@ jobs:
           zip \
           ccache
 
-    - name: Install Buildozer and Cython
+    - name: Install Buildozer, p4a and Cython
       run: |
         pip install --upgrade pip
-        pip install "Cython==0.29.33" "buildozer==1.5.0"
+        pip install "Cython==0.29.33" "buildozer==1.5.0" "python-for-android==2024.1.21"
 
     - name: Pre-accept Android SDK Licenses
       run: |
