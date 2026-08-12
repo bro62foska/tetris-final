@@ -8,6 +8,12 @@ package.domain = org.tetris
 # Исходный код
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
+# Иконка приложения
+icon.filename = %(source.dir)s/icon.png
+
+# Заставка (экран загрузки) приложения
+presplash.filename = %(source.dir)s/icon.png
+
 
 version = 0.1
 
