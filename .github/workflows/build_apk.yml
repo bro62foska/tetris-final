@@ -18,6 +18,13 @@ jobs:
       with:
         python-version: '3.10'
 
+    # Принудительно устанавливаем JDK 17 для правильной работы Gradle и Android SDK
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -37,7 +44,6 @@ jobs:
           zlib1g-dev \
           libffi-dev \
           libssl-dev \
-          openjdk-17-jdk \
           autoconf \
           libtool \
           pkg-config \
@@ -45,11 +51,13 @@ jobs:
           zip \
           ccache
 
+    # Запрещаем установку Cython 3.x, фиксируем рабочую связку
     - name: Install Buildozer, p4a and Cython
       run: |
         pip install --upgrade pip
         pip install "Cython==0.29.33" "buildozer==1.5.0" "python-for-android==2024.1.21"
 
+    # Создаем файлы лицензий SDK заранее, чтобы Buildozer не зависал в ожидании ввода
     - name: Pre-accept Android SDK Licenses
       run: |
         mkdir -p ~/.android/licenses
